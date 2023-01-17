@@ -1,0 +1,517 @@
+---
+title: "Informe evaluaciones DIA de cierre 2021"
+author: "Erwin Coronado"
+date: "05-12-2021"
+output: html_document
+---
+---
+<style>
+body {
+text-align: justify}
+</style>
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(plotly)
+library(readxl)
+library(printr)
+library(knitr)
+library(GGally)
+library(tm)
+library (wordcloud2)
+library(stringr)
+library(skimr)
+library(GGally)
+library(cluster)
+library(factoextra)
+```
+
+
+
+
+````{r  include=FALSE}
+files_to_read = list.files(
+  path = "Resultados_DIA_cierre_2021",        
+  pattern = ".*xls", 
+  recursive = TRUE,          
+  full.names = TRUE)
+
+data_lst = lapply(files_to_read,read_xls)  
+
+df <- do.call("rbind", data_lst)
+
+
+
+df1 <- df %>% rename(Numeros=Números,
+                     Algebra_y_funciones=`Álgebra y funciones`,
+                     Probabilidad_y_estadistica=`Probabilidad y estadística`,
+                     NIVEL_DE_LOGRO=`NIVEL DE LOGRO`)
+df1$Numeros <- sub(",", ".", df1$Numeros, fixed = TRUE)
+df1$Algebra_y_funciones <- sub(",", ".", df1$Algebra_y_funciones, fixed = TRUE)
+df1$Geometría <- sub(",", ".", df1$Geometría, fixed = TRUE)
+df1$Probabilidad_y_estadistica <- sub(",", ".", df1$Probabilidad_y_estadistica, fixed = TRUE)
+
+df1$Numeros <-  as.numeric(df1$Numeros)  
+df1$Algebra_y_funciones <-  as.numeric(df1$Algebra_y_funciones) 
+df1$Geometría <-  as.numeric(df1$Geometría) 
+df1$Probabilidad_y_estadistica <-  as.numeric(df1$Probabilidad_y_estadistica) 
+
+df1 <- df1 %>% mutate(Nota_porcentual=round(rowSums(df1[6:9])/4,0))
+
+df1 <- mutate(df1, Nivel_de_logro = ifelse(Nota_porcentual <= 67,"Inicial",
+                                      ifelse(Nota_porcentual > 67&Nota_porcentual <= 79,
+                                             "Elemental", ifelse(Nota_porcentual> 79 &Nota_porcentual <= 88,
+                                              "Adecuado", ifelse(Nota_porcentual> 88 &Nota_porcentual <= 100,
+                                                                 "Destacado",0)))))
+
+
+df1$Nivel_de_logro <- as.factor(df1$Nivel_de_logro)
+df1$Curso <- as.factor(df1$Curso)
+df1$Nivel <- as.factor(df1$Nivel)
+
+df1$Nivel_de_logro = factor (df1$Nivel_de_logro , levels=c("Inicial", "Elemental", "Adecuado", "Destacado"))
+levels(df1$Nivel_de_logro)
+
+df1 <- mutate(df1, Nivel_de_logro_N = ifelse(Numeros <= 67,"Inicial",
+                                      ifelse(Numeros  > 67&Numeros  <= 79,
+                                             "Elemental", ifelse(Numeros > 79 &Numeros  <= 88,
+                                              "Adecuado", ifelse(Numeros > 88 &Numeros  <= 100,
+                                                                 "Destacado",0)))))
+df1$Nivel_de_logro_N = factor (df1$Nivel_de_logro_N , levels=c("Inicial", "Elemental", "Adecuado", "Destacado"))
+levels(df1$Nivel_de_logro_N)
+
+
+
+df1 <- mutate(df1, Nivel_de_logro_AF = ifelse(Algebra_y_funciones <= 67,"Inicial",
+                                      ifelse(Algebra_y_funciones  > 67&Algebra_y_funciones  <= 79,
+                                             "Elemental", ifelse(Algebra_y_funciones > 79 &Algebra_y_funciones  <= 88,
+                                              "Adecuado", ifelse(Algebra_y_funciones > 88 &Algebra_y_funciones  <= 100,
+                                                                 "Destacado",0)))))
+df1$Nivel_de_logro_AF = factor (df1$Nivel_de_logro_AF , levels=c("Inicial", "Elemental", "Adecuado", "Destacado"))
+levels(df1$Nivel_de_logro_AF)
+
+
+
+df1 <- mutate(df1, Nivel_de_logro_G = ifelse(Geometría <= 67,"Inicial",
+                                      ifelse(Geometría  > 67&Geometría  <= 79,
+                                             "Elemental", ifelse(Geometría > 79 &Geometría  <= 88,
+                                              "Adecuado", ifelse(Geometría > 88 &Geometría  <= 100,
+                                                                 "Destacado",0)))))
+df1$Nivel_de_logro_G = factor (df1$Nivel_de_logro_G , levels=c("Inicial", "Elemental", "Adecuado", "Destacado"))
+levels(df1$Nivel_de_logro_G)
+
+
+
+df1 <- mutate(df1, Nivel_de_logro_PE = ifelse(Probabilidad_y_estadistica <= 67,"Inicial",
+                                      ifelse(Probabilidad_y_estadistica  > 67&Probabilidad_y_estadistica  <= 79,
+                                             "Elemental", ifelse(Probabilidad_y_estadistica > 79 &Probabilidad_y_estadistica  <= 88,
+                                              "Adecuado", ifelse(Probabilidad_y_estadistica > 88 &Probabilidad_y_estadistica <= 100,
+                                                                 "Destacado",0)))))
+df1$Nivel_de_logro_PE = factor (df1$Nivel_de_logro_PE , levels=c("Inicial", "Elemental", "Adecuado", "Destacado"))
+levels(df1$Nivel_de_logro_PE)
+
+
+df1$NIVEL_DE_LOGRO = factor (df1$NIVEL_DE_LOGRO , levels=c("Insatisfactorio", "Intermedio", "Satisfactorio"))
+levels(df1$NIVEL_DE_LOGRO)
+
+````
+
+## Introducción
+***
+El siguiente informe concentra los resultados de las evaluaciones DIA realizados el 29 de noviembre de 2021 para los niveles séptimo a segundo medio, considerando distintas relaciones, las que serán presentadas en una serie de visualizaciones que permitirán mostrar cómo se distribuyeron los datos.
+
+La información que se rescató de la plataforma [Agencia de educación](https://dia.agenciaeducacion.cl) entrega los resultados por alumno y por curso de acuerdo a los ejes considerados en el currículum:  Números, Álgebra y funciones, Geometría, Estadística y probabilidades, sin entregar un promedio, por lo que se realizó este cálculo y, por lo tanto, las visualizaciones en las que no se hace la indicación respectiva, considera este promedio para la generación de los gráficos.
+
+Por otro lado, es importante indicar que los niveles de logro en la Agencia de Calidad son tres: Nivel Insatisfactorio, Nivel Intermedio y Nivel Satisfactorio. De acuerdo a lo anterior, se ajustaron los rangos de categorización a nuestra clasificación, en particular, se presenta la siguiente tabla con los rangos porcentuales según el Nivel de logro:
+
+|             | Inicial             | Elemental                        | Adecuado                         | Destacado                         |
+|-------------|---------------------|----------------------------------|----------------------------------|-----------------------------------|
+|  | $x\leq 67\%$ | $67\% <x\leq 79\%$  | $79\% <x\leq   87\%$  |  $87\% <x\leq  100\%$  |
+
+***
+
+### Presentación de resultados iniciales
+
+La siguiente tabla muestra los promedios, de acuerdo a lo indicado más arriba, junto al porcentaje mínimo y máximo alcanzados por cada uno de los cursos.
+
+***
+
+````{r echo=FALSE, message=FALSE, warning=FALSE}
+df1 %>% group_by( Curso) %>% summarise(Promedio=round(mean(Nota_porcentual),1),PMínimo=min(Nota_porcentual),  PMáximo=max(Nota_porcentual))
+````
+
+***
+
+### Visualizaciones de resultados
+
+***
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+g1 <- df1 %>%
+  ggplot( aes(x=Curso, y=Nota_porcentual, group= Curso)) +
+  geom_boxplot(outlier.colour = "blue") +
+  #theme_ipsum() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) + 
+  #ggtitle(" Promedio Finales I Semestre 2021") +
+  xlab("Cursos") +
+  ylab("Resultados por Curso") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_boxplot(geom = "errorbar",     
+               width = 0.5) +
+  stat_summary(fun=mean, geom="point", shape=18,
+               size=3, color="red")
+````
+***
+
+### Gráfico N°1
+
+***
+
+
+El siguiente gráfico presenta el comportamiento de los resultados de cada curso. La visualización permite identificar los cuartiles, puntajes atípicos de un curso particular junto con el promedio indicado más arriba. 
+
+
+***
+
+````{r echo=FALSE}
+ggplotly(g1)
+````
+
+***
+
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+g2 <- df1 %>%
+  ggplot( aes(x=Nivel, y=Nota_porcentual, group= Nivel)) +
+  geom_boxplot(outlier.colour = "blue") +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) + 
+  xlab("Niveles") +
+  ylab("Resultados por Nivel") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_boxplot(geom = "errorbar",     
+               width = 0.5) +
+  stat_summary(fun=mean, geom="point", shape=18,
+               size=3, color="red")
+````
+
+
+
+### Gráfico N°2
+
+El siguiente gráfico presenta el comportamiento de los resultados de cada Nivel, incluyendo, cuando corresponde, los casos atípicos.
+
+***
+
+````{r echo=FALSE}
+ggplotly(g2)
+````
+
+***
+
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+g3 <- df1 %>%
+  ggplot(aes(x=Nivel_de_logro, y=Nota_porcentual, group=Nivel_de_logro)) +
+  geom_boxplot(outlier.colour = "blue") +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) + 
+  #ggtitle(" Promedio Finales I Semestre 2021") +
+  xlab("Niveles") +
+  ylab("Resultados por Nivel de logro") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_boxplot(geom = "errorbar",     
+               width = 0.5) +
+  stat_summary(fun=mean, geom="point", shape=18,
+               size=3, color="red")
+````
+### Gráfico N°3
+
+El siguiente gráfico presenta el comportamiento de los resultados por Nivel de logro.
+
+***
+````{r echo=FALSE}
+ggplotly(g3)
+````
+
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+g4 <- df1 %>%
+  ggplot(aes(x=Sexo, y=Nota_porcentual, group= Sexo)) +
+  geom_boxplot(outlier.colour = "blue") +
+  #theme_ipsum() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) + 
+  #ggtitle(" Promedio Finales I Semestre 2021") +
+  xlab("Sexo") +
+  ylab("Resultados por Sexo") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  stat_boxplot(geom = "errorbar",     
+               width = 0.5) +
+  stat_summary(fun=mean, geom="point", shape=18,
+               size=3, color="red")
+````
+### Gráfico N°4
+
+El siguiente gráfico presenta el comportamiento de los resultados por sexo.
+
+***
+````{r echo=FALSE}
+ggplotly(g4)
+````
+***
+### Gráficos de distribución de resultados por curso 
+
+Los gráficos que acontinuación se presentan, muestran la distribución de resultados. Se incorpora en cada gráfico, la curva de densidad y la perpendicular $x=67$ que representa el valor máximo del Nivel de Logro: Inicial. 
+
+***
+````{r echo=FALSE}
+
+df4 <- df1 %>% filter(Curso=="7°A")
+df4 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 7°A",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666") 
+````
+
+````{r echo=FALSE}
+
+df5 <- df1 %>% filter(Curso=="7°B")
+df5 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 7°B",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666") 
+````
+
+````{r echo=FALSE}
+
+df6 <- df1 %>% filter(Curso=="7°C")
+df6 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 7°C",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666") 
+````
+
+````{r echo=FALSE}
+
+
+df7 <- df1 %>% filter(Curso=="8°A")
+df7 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 8°A",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666") 
+````
+
+
+````{r echo=FALSE}
+
+df8 <- df1 %>% filter(Curso=="8°B")
+df8 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 8°B",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666") 
+````
+
+````{r echo=FALSE}
+df9 <- df1 %>% filter(Curso=="8°C")
+df9 %>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados 8°C",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+
+````{r echo=FALSE}
+df10 <- df1 %>% filter(Curso=="I°A")
+df10%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados I°A",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+
+````
+
+
+````{r echo=FALSE}
+df11 <- df1 %>% filter(Curso=="I°B")
+df11%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados I°B",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+
+
+````{r echo=FALSE}
+df12 <- df1 %>% filter(Curso=="I°C")
+df12%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados I°C",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+````{r echo=FALSE}
+df13 <- df1 %>% filter(Curso=="II°A")
+df13%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados II°A",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+````{r echo=FALSE}
+df14 <- df1 %>% filter(Curso=="II°B")
+df14%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados II°B",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+````{r echo=FALSE}
+df15 <- df1 %>% filter(Curso=="II°C")
+df15%>% ggplot(aes(x=Nota_porcentual)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white", bins = 10)+
+  labs(title = "Distribución de resultados II°C",x="Porcentajes obtenidos")+
+geom_vline(xintercept=67, linetype="dashed", color = "red")+
+ geom_density(alpha=.2, fill="#FF6666")
+````
+
+
+
+***
+### Gráficos de distribución de resultados por Eje y por curso 
+
+Las visualizaciones siguientes presentan la distribución de resultados de acuerdo a cada eje evaluado. 
+
+***
+### Eje Números por curso
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+gr4 <- df1%>% ggplot(aes(x=Curso, y=Numeros, fill=Curso)) + geom_bar(stat="identity")+
+  scale_y_continuous(breaks=NULL)+scale_x_discrete(breaks=NULL)+ theme(axis.ticks = element_blank(), 
+                 axis.text.y = element_blank(),
+                  axis.text.x = element_blank())
+
+gr5<-gr4 + facet_grid(.~ Nivel_de_logro_N)+
+  scale_y_continuous(breaks=NULL)
+````
+````{r echo=FALSE}
+ggplotly(gr5)
+````
+### Eje Álgebra y funciones por curso
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+gr6 <- df1%>% ggplot(aes(x=Curso, y=Algebra_y_funciones, fill=Curso)) + geom_bar(stat="identity")+
+  scale_y_continuous(breaks=NULL)+scale_x_discrete(breaks=NULL)+ theme(axis.ticks = element_blank(), 
+                 axis.text.y = element_blank(),
+                  axis.text.x = element_blank())
+
+gr7<-gr6 + facet_grid(.~ Nivel_de_logro_AF)+
+  scale_y_continuous(breaks=NULL)
+````
+````{r echo=FALSE}
+ggplotly(gr7)
+````
+
+### Eje Geometría por curso
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+gr8 <- df1%>% ggplot(aes(x=Curso, y=Geometría, fill=Curso)) + geom_bar(stat="identity")+
+  scale_y_continuous(breaks=NULL)+scale_x_discrete(breaks=NULL)+ theme(axis.ticks = element_blank(), 
+                 axis.text.y = element_blank(),
+                  axis.text.x = element_blank())
+
+gr9<-gr8 + facet_grid(.~ Nivel_de_logro_G)+
+  scale_y_continuous(breaks=NULL)
+````
+````{r echo=FALSE}
+ggplotly(gr9)
+````
+
+
+### Eje Probabildad y estadística por curso
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+gr10 <- df1%>% ggplot(aes(x=Curso, y=Probabilidad_y_estadistica, fill=Curso)) + geom_bar(stat="identity")+
+  scale_y_continuous(breaks=NULL)+scale_x_discrete(breaks=NULL)+ theme(axis.ticks = element_blank(), 
+                 axis.text.y = element_blank(),
+                  axis.text.x = element_blank())
+
+gr11<-gr10 + facet_grid(.~ Nivel_de_logro_PE)+
+  scale_y_continuous(breaks=NULL)
+````
+````{r echo=FALSE}
+ggplotly(gr11)
+````
+
+***
+
+### Niveles de logro según configuración AGENCIA
+
+````{r message=FALSE, warning=FALSE, include=FALSE}
+gr15 <- df1%>% ggplot(aes(x=Curso, y=Nota_porcentual, fill=Curso)) + geom_bar(stat="identity")+
+  scale_y_continuous(breaks=NULL)+scale_x_discrete(breaks=NULL)+ theme(axis.ticks = element_blank(), 
+                 axis.text.y = element_blank(),
+                  axis.text.x = element_blank())
+
+gr16<-gr15 + facet_grid(.~ NIVEL_DE_LOGRO)+
+  scale_y_continuous(breaks=NULL)
+````
+````{r echo=FALSE}
+ggplotly(gr16)
+````
+
+***
+
+
+## Conclusiones generales
+
+De acuerdo a los resultados obtenidos de las evaluaciones realizadas es necesario identificar, en lo posible, los factores, no excluyentes entre sí, que han influido en ellos, por ejemplo podrían ser:
+
+    1. La fecha de realización es un factor interesante a analizar, ya que las evaluaciones fueron realizadas luego del cierre del período lectivo. Lo anterior nos debe hacer reflexionar respecto de una definición en una nueva fecha para el período de evaluaciones.
+
+***
+
+    2. Cómo los y las estudiantes consideran una evaluación de carácter formativo. Según esto, se mantiene la concepción que una evaluación que no es calificada carece de importancia y por lo tanto no se genera el esfuerzo al momento e la resolución.
+
+***
+
+
+    3. Uso del tiempo de trabajo por cada unidad de aprendizaje. Lo anterior, porque se ha comenzado este año a fortalecer este formato de trabajo donde el foco ha sido relevar ¿qué queremos que nuestros alumnos y alumnas aprendan?. 
+
+***
+
+    4. Afianzar, por parte nuestra el desarrollo de los procesos de medición en cada una de las unidades de aprendizaje. Lo anterior, en atención ha relevar ¿qué están haciendo los alumnos y alumnas para aprender?.   
+
+***
+
+    5. Afianzar un formato de trabajo que nos permitan responder ¿Cómo saben los y las estudiantes y nosotros que se está aprendiendo?
+
+
+
+
+
+***
